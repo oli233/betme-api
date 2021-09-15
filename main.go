@@ -1,60 +1,52 @@
 package main
 
 import (
-	"encoding/json"
+	"BetmeAPI/apis"
+	"BetmeAPI/data"
+	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
+	"os"
+	"time"
 )
 
-const ApiKey = "9317664c724de4ae8eb40bbb38a21d18"
-
-type Data struct {
-	Key    string `json:"key"`
-	Active bool   `json:"active"`
-	Group  string `json:"group"`
-	Details string `json:"details"`
-	Title string `json:"title"`
-	Has_outrights bool `json:"has_outrights"`
-}
-
-type Sports struct {
-	Success bool `json:"success"`
-	DataArray []Data `json:"data"`
-}
+//const APIKEY = "9317664c724de4ae8eb40bbb38a21d18"
+//const MONGOADDR = "mongodb://192.227.147.138:29017"
 
 func main() {
-	resp, err := http.Get("https://api.the-odds-api.com/v3/sports?apiKey="+ ApiKey)
-	if err != nil {
-		log.Fatalln(err)
+
+	//command line get key and DBaddr
+	var apik, mongoaddr string
+	args := os.Args[1:]
+
+	for i := 0; i < len(args); i++ {
+		fmt.Println("arg is", args[i])
+		switch args[i] {
+		case "-k":
+			apik = args[i+1]
+			fmt.Println(apik)
+			i++
+			break
+		case "-a":
+			mongoaddr = args[i+1]
+			fmt.Println("addr is", mongoaddr)
+			i++
+			break
+		default:
+			log.Fatalln("Args missing or here is no implemented command fot that.")
+		}
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
+	//Init back-end
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Second)
+	mongoSocket := data.Init(mongoaddr, &ctx)
+
+	//Create an instance
+	var client apis.Api
+	client = &apis.ApiClient{Ctx: &ctx, DbScocket: mongoSocket, ApiKey: apik}
+
+	clientResult := client.InitData() //change api here as needed
+	if clientResult != 0 {
+		fmt.Println("client finished with error code", clientResult)
 	}
-
-
-	//decoding to json
-	var jsonResult Sports
-
-	//err = json.Unmarshal([]byte(string(body)), &jsonResult)
-	err = json.Unmarshal([]byte(string(body)), &jsonResult)
-	if err != nil {
-		return
-	}
-
-	fmt.Println(jsonResult.DataArray)
-
-	//if jsonResult["success"]==nil {
-	//	log.Print("Didn't receive any data")
-	//	return
-	//} else {
-	//	//print(jsonResult["data"])
-	//}
-
-	//Convert the body to type string
-	//sb := string(body)
-	//log.Printf(sb)
 }
